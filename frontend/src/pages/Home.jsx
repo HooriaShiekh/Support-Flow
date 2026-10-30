@@ -64,7 +64,7 @@ function Home() {
             <motion.a
               whileHover={{ scale: 1.03, boxShadow: "0 0 25px rgba(99, 102, 241, 0.5)" }}
               whileTap={{ scale: 0.97 }}
-              href="/create-ticket"
+              href="/login"
               className="w-full sm:w-auto bg-indigo-600 text-white px-9 py-4 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-indigo-500 transition duration-300 flex items-center justify-center gap-3 shadow-xl shadow-indigo-600/30"
             >
               Raise New Ticket <ArrowRight className="w-4 h-4" />
@@ -315,7 +315,7 @@ function Home() {
             <motion.a
               whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(99, 102, 241, 0.6)" }}
               whileTap={{ scale: 0.95 }}
-              href="/create-ticket"
+              href="/login"
               className="inline-flex items-center gap-3 bg-indigo-600 text-white px-10 py-5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-indigo-500 transition duration-300 shadow-2xl shadow-indigo-600/30"
             >
               Raise Your First Ticket <ArrowRight className="w-4 h-4" />
