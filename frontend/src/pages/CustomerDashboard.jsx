@@ -24,7 +24,7 @@ const CustomerDashboard = () => {
         const fetchCategories = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.get('http://localhost:5000/api/tickets/categories', {
+                const response = await axios.get('http://https://support-flow-ten.vercel.app/api/tickets/categories', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setCategories(response.data);
@@ -50,7 +50,7 @@ const CustomerDashboard = () => {
             setLoadingWorkers(true);
             try {
                 const token = localStorage.getItem('token'); 
-                const response = await axios.get(`http://localhost:5000/api/tickets/workers/${category}`, {
+                const response = await axios.get(`http://https://support-flow-ten.vercel.app/api/tickets/workers/${category}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setWorkers(response.data);
@@ -69,7 +69,7 @@ const CustomerDashboard = () => {
         e.preventDefault();
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.post('http://localhost:5000/api/tickets/create', {
+            const response = await axios.post('http://https://support-flow-ten.vercel.app/api/tickets/create', {
                 title,
                 description,
                 category,

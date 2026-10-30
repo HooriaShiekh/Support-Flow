@@ -54,7 +54,7 @@ const WorkerDashboard = () => {
         try {
             if (!isBackground) setLoading(true);
             
-            const response = await axios.get('http://localhost:5000/api/worker/my-assigned-tickets', {
+            const response = await axios.get('http://https://support-flow-ten.vercel.app/api/worker/my-assigned-tickets', {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -84,7 +84,7 @@ const WorkerDashboard = () => {
             setSuccessMessage('');
             
             const response = await axios.put(
-                `http://localhost:5000/api/worker/update-status/${ticketId}`, 
+                `http://https://support-flow-ten.vercel.app/api/worker/update-status/${ticketId}`, 
                 { status: newStatus, priority: newPriority },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
