@@ -18,20 +18,12 @@ import {
     PieChart as PieIcon,
     LayoutGrid,
     List,
-    UserPlus,
-    Filter,
-    X,
-    ExternalLink,
-    BarChart2,
-    Hash,
-    Sparkles,
     Download,
     Star,
-    MessageSquare,
     Flame,
-    Menu,
     ChevronDown,
-    SlidersHorizontal
+    SlidersHorizontal,
+    X
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -110,14 +102,14 @@ const AdminDashboard = () => {
             const headers = { Authorization: `Bearer ${token}` };
 
             const [statsRes, usersRes, ticketsRes] = await Promise.all([
-                axios.get('${import.meta.env.VITE_BACKEND_URI}/api/admin/stats', { headers }),
-                axios.get('${import.meta.env.VITE_BACKEND_URI}/api/admin/users', { headers }),
-                axios.get('${import.meta.env.VITE_BACKEND_URI}/api/admin/tickets', { headers })
+                axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/admin/stats`, { headers }),
+                axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/admin/users`, { headers }),
+                axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/admin/tickets`, { headers })
             ]);
 
             setStats(statsRes.data);
-            setUsers(usersRes.data);
-            setTickets(ticketsRes.data);
+            setUsers(Array.isArray(usersRes.data) ? usersRes.data : usersRes.data.users || []);
+            setTickets(Array.isArray(ticketsRes.data) ? ticketsRes.data : ticketsRes.data.tickets || []);
         } catch (err) {
             console.error("Error fetching admin data:", err);
             setError(err.response?.data?.error || "Failed to sync command center metrics.");
@@ -131,13 +123,14 @@ const AdminDashboard = () => {
     }, []);
 
     const handleExportCSV = () => {
-        if (tickets.length === 0) {
+        const safeTickets = Array.isArray(tickets) ? tickets : [];
+        if (safeTickets.length === 0) {
             alert("No tickets available to export.");
             return;
         }
 
         const headers = ["Ticket ID,Title,Category,Status,Priority,Customer,Worker,Created At\n"];
-        const rows = tickets.map((t, idx) => {
+        const rows = safeTickets.map((t, idx) => {
             const ticketId = t.ticketNumber || `TK-${(idx + 1).toString().padStart(4, '0')}`;
             const title = `"${(t.title || 'Untitled').replace(/"/g, '""')}"`;
             const category = `"${t.category || 'General'}"`;
@@ -176,7 +169,7 @@ const AdminDashboard = () => {
             setSuccessMsg("Ticket reassigned successfully!");
             setTimeout(() => setSuccessMsg(''), 4000);
 
-            setTickets(tickets.map(t => t._id === selectedTicket._id ? res.data.ticket : t));
+            setTickets((Array.isArray(tickets) ? tickets : []).map(t => t._id === selectedTicket._id ? res.data.ticket : t));
             setSelectedTicket(null);
             setSelectedWorkerId('');
         } catch (err) {
@@ -202,7 +195,7 @@ const AdminDashboard = () => {
             setSuccessMsg("User account deleted successfully.");
             setTimeout(() => setSuccessMsg(''), 4000);
 
-            setUsers(users.filter(u => u._id !== userId));
+            setUsers((Array.isArray(users) ? users : []).filter(u => u._id !== userId));
             setStats(prev => ({
                 ...prev,
                 totalUsers: userRole === 'user' ? prev.totalUsers - 1 : prev.totalUsers,
@@ -220,10 +213,13 @@ const AdminDashboard = () => {
         window.location.href = '/login';
     };
 
-    const availableWorkers = users.filter(u => u.role === 'worker');
-    const categories = ['all', ...new Set(tickets.map(t => t.category).filter(Boolean))];
+    const safeUsers = Array.isArray(users) ? users : [];
+    const safeTickets = Array.isArray(tickets) ? tickets : [];
 
-    const filteredTickets = tickets.filter(t => {
+    const availableWorkers = safeUsers.filter(u => u.role === 'worker');
+    const categories = ['all', ...new Set(safeTickets.map(t => t.category).filter(Boolean))];
+
+    const filteredTickets = safeTickets.filter(t => {
         const matchesStatus = ticketFilter === 'all' || t.status === ticketFilter;
         const matchesCategory = ticketCategoryFilter === 'all' || t.category === ticketCategoryFilter;
         const searchLower = ticketSearch.toLowerCase();
@@ -237,15 +233,15 @@ const AdminDashboard = () => {
         return matchesStatus && matchesCategory && matchesSearch;
     });
 
-    const filteredUsers = users.filter(u => {
+    const filteredUsers = safeUsers.filter(u => {
         const matchesRole = filterRole === 'all' || u.role === filterRole;
         const matchesSearch = (u.name || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
-                              (u.email || '').toLowerCase().includes(userSearchTerm.toLowerCase());
+                            (u.email || '').toLowerCase().includes(userSearchTerm.toLowerCase());
         return matchesRole && matchesSearch;
     });
 
     const getWorkerStats = (workerId) => {
-        const workerTickets = tickets.filter(t => t.assignedWorker?._id === workerId);
+        const workerTickets = safeTickets.filter(t => t.assignedWorker?._id === workerId);
         const total = workerTickets.length;
         const pending = workerTickets.filter(t => t.status === 'Pending' || !t.status).length;
         const inProgress = workerTickets.filter(t => t.status === 'In Progress').length;
@@ -285,10 +281,10 @@ const AdminDashboard = () => {
         };
     };
 
-    const pendingCount = tickets.filter(t => t.status === 'Pending' || !t.status).length;
-    const inProgressCount = tickets.filter(t => t.status === 'In Progress').length;
-    const completedCount = tickets.filter(t => t.status === 'Completed').length;
-    const rejectedCount = tickets.filter(t => t.status === 'Rejected').length;
+    const pendingCount = safeTickets.filter(t => t.status === 'Pending' || !t.status).length;
+    const inProgressCount = safeTickets.filter(t => t.status === 'In Progress').length;
+    const completedCount = safeTickets.filter(t => t.status === 'Completed').length;
+    const rejectedCount = safeTickets.filter(t => t.status === 'Rejected').length;
 
     const pieChartData = [
         { name: 'Pending', value: pendingCount, color: '#f59e0b' },
@@ -411,7 +407,7 @@ const AdminDashboard = () => {
                 {error && <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-3 sm:p-4 rounded-xl sm:rounded-2xl text-xs font-bold">{error}</div>}
                 {successMsg && <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 sm:p-4 rounded-xl sm:rounded-2xl text-xs font-bold">{successMsg}</div>}
 
-                {/* 📱 MOBILE VIEW NAVIGATION TABS (Visible only on mobile) */}
+                {/* 📱 MOBILE VIEW NAVIGATION TABS */}
                 <div className="flex md:hidden items-center justify-between p-1.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs font-black">
                     <button 
                         onClick={() => setMobileTab('overview')}
@@ -423,7 +419,7 @@ const AdminDashboard = () => {
                         onClick={() => setMobileTab('tickets')}
                         className={`flex-1 py-2.5 rounded-xl transition-all ${mobileTab === 'tickets' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400'}`}
                     >
-                        Tickets ({tickets.length})
+                        Tickets ({safeTickets.length})
                     </button>
                     <button 
                         onClick={() => setMobileTab('users')}
@@ -433,7 +429,7 @@ const AdminDashboard = () => {
                     </button>
                 </div>
 
-                {/* SECTION 1: STATS & PIE CHART (Desktop: Always Visible, Mobile: Under 'overview' tab) */}
+                {/* SECTION 1: STATS & PIE CHART */}
                 <div className={`${mobileTab === 'overview' ? 'block' : 'hidden md:grid'} grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6`}>
                     <div className={`${currentTheme.cardBg} border p-4 sm:p-6 rounded-2xl sm:rounded-3xl lg:col-span-1 flex flex-col justify-between shadow-xl`}>
                         <div className="flex items-center justify-between mb-2">
@@ -522,7 +518,7 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* SECTION 2: MASTER TICKET OVERSIGHT (Desktop: Always Visible, Mobile: Under 'tickets' tab) */}
+                {/* SECTION 2: MASTER TICKET OVERSIGHT */}
                 <section className={`${mobileTab === 'tickets' || mobileTab === 'overview' ? 'block' : 'hidden md:block'} ${currentTheme.cardBg} border rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl`}>
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-5">
                         <div>
@@ -533,7 +529,6 @@ const AdminDashboard = () => {
                             <p className={`text-xs ${currentTheme.subText} mt-0.5`}>Search, filter, or override worker assignments.</p>
                         </div>
 
-                        {/* Mobile Collapsible Filter Toggle Button */}
                         <div className="flex items-center justify-between w-full lg:w-auto gap-2">
                             <button 
                                 onClick={() => setShowMobileFilters(!showMobileFilters)}
@@ -544,7 +539,6 @@ const AdminDashboard = () => {
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMobileFilters ? 'rotate-180' : ''}`} />
                             </button>
 
-                            {/* View Mode Switches (Desktop Only) */}
                             <div className={`hidden sm:flex items-center gap-1 p-1 rounded-xl border ${currentTheme.pillBg}`}>
                                 <button onClick={() => setViewMode('cards')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>
                                     <LayoutGrid className="w-4 h-4" />
@@ -556,7 +550,6 @@ const AdminDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Filter Bar Controls (Always visible on desktop, drawer on mobile) */}
                     <div className={`${showMobileFilters ? 'block' : 'hidden sm:block'} space-y-3 mb-6 transition-all`}>
                         <div className="flex flex-col sm:flex-row items-center gap-3">
                             <div className="relative flex-1 w-full">
@@ -566,413 +559,308 @@ const AdminDashboard = () => {
                                     placeholder="Search by Ticket #, Title, Customer, or Worker..."
                                     value={ticketSearch}
                                     onChange={(e) => setTicketSearch(e.target.value)}
-                                    className={`w-full pl-9 pr-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs font-bold border outline-none ${currentTheme.inputBg}`}
+                                    className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-bold ${currentTheme.inputBg}`}
                                 />
                             </div>
 
-                            {categories.length > 1 && (
-                                <div className="w-full sm:w-auto">
-                                    <select 
-                                        value={ticketCategoryFilter}
-                                        onChange={(e) => setTicketCategoryFilter(e.target.value)}
-                                        className={`w-full sm:w-auto px-3 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs font-bold border outline-none ${currentTheme.inputBg} cursor-pointer`}
-                                    >
-                                        {categories.map(cat => (
-                                            <option key={cat} value={cat}>
-                                                {cat === 'all' ? 'All Categories' : cat}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Status Pills Bar */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                            {['all', 'Pending', 'In Progress', 'Completed', 'Rejected'].map((status) => (
-                                <button 
-                                    key={status}
-                                    onClick={() => setTicketFilter(status)}
-                                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all whitespace-nowrap ${
-                                        ticketFilter === status 
-                                            ? 'bg-indigo-600 text-white shadow-md' 
-                                            : `${currentTheme.subText} hover:text-indigo-400`
-                                    }`}
+                            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                                <select 
+                                    value={ticketFilter}
+                                    onChange={(e) => setTicketFilter(e.target.value)}
+                                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold ${currentTheme.inputBg}`}
                                 >
-                                    {status}
-                                </button>
-                            ))}
+                                    <option value="all">All Statuses</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+
+                                <select 
+                                    value={ticketCategoryFilter}
+                                    onChange={(e) => setTicketCategoryFilter(e.target.value)}
+                                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold ${currentTheme.inputBg}`}
+                                >
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat}>
+                                            {cat === 'all' ? 'All Categories' : cat}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    {/* TICKET CARDS / TABLE LISTING */}
-                    {viewMode === 'cards' ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-                            {filteredTickets.length === 0 ? (
-                                <div className="col-span-full text-center py-10 text-slate-500 font-medium text-xs">
-                                    No ticket records match current search and filter.
-                                </div>
-                            ) : (
-                                filteredTickets.map((t, index) => (
-                                    <div key={t._id} className={`${currentTheme.innerCard} border p-4 sm:p-5 rounded-2xl shadow-md flex flex-col justify-between`}>
+                    {filteredTickets.length === 0 ? (
+                        <div className="text-center py-16 border border-dashed border-slate-800 rounded-3xl">
+                            <AlertCircle className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                            <p className="text-xs font-bold text-slate-400">No service tickets matched your filter parameters.</p>
+                        </div>
+                    ) : viewMode === 'cards' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredTickets.map((t, idx) => {
+                                const ticketId = t.ticketNumber || `TK-${(idx + 1).toString().padStart(4, '0')}`;
+                                return (
+                                    <div key={t._id} className={`${currentTheme.innerCard} border p-4 sm:p-5 rounded-2xl flex flex-col justify-between shadow-lg relative overflow-hidden group`}>
                                         <div>
-                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                            <div className="flex items-center justify-between gap-2 mb-3">
+                                                <span className="font-mono text-[11px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                                                    {ticketId}
+                                                </span>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] font-black font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/20">
-                                                        <Hash className="w-2.5 h-2.5" />
-                                                        {t.ticketNumber || `TK-${(index + 1).toString().padStart(4, '0')}`}
-                                                    </span>
                                                     {getPriorityBadge(t.priority)}
+                                                    {getStatusBadge(t.status)}
                                                 </div>
-                                                {getStatusBadge(t.status)}
                                             </div>
 
-                                            <h3 className={`font-black text-xs sm:text-sm ${currentTheme.titleText} line-clamp-1 mb-1`}>{t.title || 'Service Ticket'}</h3>
-                                            <p className={`text-[11px] ${currentTheme.subText} line-clamp-2 mb-3`}>{t.description || 'No ticket notes provided.'}</p>
+                                            <h3 className={`text-sm font-black line-clamp-1 ${currentTheme.titleText} mb-1`}>{t.title}</h3>
+                                            <p className={`text-xs ${currentTheme.subText} line-clamp-2 mb-4 leading-relaxed`}>{t.description}</p>
+
+                                            <div className="space-y-1.5 pt-3 border-t border-slate-800/80 text-xs">
+                                                <div className="flex justify-between items-center">
+                                                    <span className={currentTheme.subText}>Customer:</span>
+                                                    <span className="font-bold">{t.customer?.name || 'Guest'}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className={currentTheme.subText}>Assigned Worker:</span>
+                                                    <span className="font-bold text-indigo-400">{t.assignedWorker?.name || 'Unassigned'}</span>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <div className="space-y-2.5 pt-3 border-t border-slate-300 dark:border-slate-800/80">
-                                            <div className="flex items-center justify-between text-[11px]">
-                                                <div>
-                                                    <span className="text-[9px] uppercase font-black text-slate-500 block">Customer</span>
-                                                    <span className={`font-bold ${currentTheme.titleText}`}>{t.customer?.name || 'Guest User'}</span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-[9px] uppercase font-black text-slate-500 block">Assigned Worker</span>
-                                                    <span className={`font-bold ${t.assignedWorker?.name ? 'text-amber-400' : 'text-slate-500 italic'}`}>
-                                                        {t.assignedWorker?.name || 'Unassigned'}
-                                                    </span>
-                                                </div>
-                                            </div>
-
+                                        <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                                            <span className="text-[10px] text-slate-500 font-mono">
+                                                {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A'}
+                                            </span>
                                             <button 
-                                                onClick={() => { setSelectedTicket(t); setSelectedWorkerId(t.assignedWorker?._id || ''); }}
-                                                className="w-full py-2 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-600/30 text-indigo-400 text-xs font-black transition-all flex items-center justify-center gap-1.5"
+                                                onClick={() => setSelectedTicket(t)}
+                                                className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 text-xs font-black transition-all"
                                             >
-                                                <UserPlus className="w-3.5 h-3.5" />
-                                                <span>Re-assign Worker</span>
+                                                Reassign
                                             </button>
                                         </div>
                                     </div>
-                                ))
-                            )}
+                                );
+                            })}
                         </div>
                     ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-slate-300 dark:border-slate-800">
-                            <table className="w-full text-left border-collapse text-xs">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
                                 <thead>
-                                    <tr className="bg-slate-200 dark:bg-slate-900 text-slate-700 dark:text-slate-300 uppercase tracking-wider font-black border-b border-slate-300 dark:border-slate-800">
-                                        <th className="p-3.5 pl-5">Ticket ID</th>
-                                        <th className="p-3.5">Title</th>
-                                        <th className="p-3.5">Priority</th>
-                                        <th className="p-3.5">Customer</th>
-                                        <th className="p-3.5">Worker</th>
-                                        <th className="p-3.5">Status</th>
-                                        <th className="p-3.5 pr-5 text-right">Action</th>
+                                    <tr className={`border-b ${theme === 'light' ? 'border-slate-300 text-slate-700' : 'border-slate-800 text-slate-400'}`}>
+                                        <th className="py-3 px-4 font-black">ID</th>
+                                        <th className="py-3 px-4 font-black">Title</th>
+                                        <th className="py-3 px-4 font-black">Category</th>
+                                        <th className="py-3 px-4 font-black">Status</th>
+                                        <th className="py-3 px-4 font-black">Priority</th>
+                                        <th className="py-3 px-4 font-black">Customer</th>
+                                        <th className="py-3 px-4 font-black">Worker</th>
+                                        <th className="py-3 px-4 font-black text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-300 dark:divide-slate-800 font-bold">
-                                    {filteredTickets.map((t, index) => (
-                                        <tr key={t._id} className="hover:bg-slate-100 dark:hover:bg-slate-800/40">
-                                            <td className="p-3.5 pl-5 font-mono text-indigo-400 font-black">
-                                                #{t.ticketNumber || `TK-${(index + 1).toString().padStart(4, '0')}`}
-                                            </td>
-                                            <td className="p-3.5">{t.title || 'Untitled'}</td>
-                                            <td className="p-3.5">{getPriorityBadge(t.priority)}</td>
-                                            <td className="p-3.5">{t.customer?.name || 'Guest'}</td>
-                                            <td className="p-3.5">{t.assignedWorker?.name || 'Unassigned'}</td>
-                                            <td className="p-3.5">{getStatusBadge(t.status)}</td>
-                                            <td className="p-3.5 pr-5 text-right">
-                                                <button 
-                                                    onClick={() => { setSelectedTicket(t); setSelectedWorkerId(t.assignedWorker?._id || ''); }}
-                                                    className="px-2.5 py-1 rounded-lg bg-indigo-600/15 border border-indigo-600/30 text-indigo-400 font-black text-[10px]"
-                                                >
-                                                    Reassign
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                <tbody className="divide-y divide-slate-800/50">
+                                    {filteredTickets.map((t, idx) => {
+                                        const ticketId = t.ticketNumber || `TK-${(idx + 1).toString().padStart(4, '0')}`;
+                                        return (
+                                            <tr key={t._id} className="hover:bg-slate-800/30 transition-colors">
+                                                <td className="py-3.5 px-4 font-mono font-bold text-indigo-400">{ticketId}</td>
+                                                <td className="py-3.5 px-4 font-bold max-w-[200px] truncate">{t.title}</td>
+                                                <td className="py-3.5 px-4 text-slate-400">{t.category || 'General'}</td>
+                                                <td className="py-3.5 px-4">{getStatusBadge(t.status)}</td>
+                                                <td className="py-3.5 px-4">{getPriorityBadge(t.priority)}</td>
+                                                <td className="py-3.5 px-4 font-bold">{t.customer?.name || 'Guest'}</td>
+                                                <td className="py-3.5 px-4 font-bold text-indigo-400">{t.assignedWorker?.name || 'Unassigned'}</td>
+                                                <td className="py-3.5 px-4 text-right">
+                                                    <button 
+                                                        onClick={() => setSelectedTicket(t)}
+                                                        className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 font-bold"
+                                                    >
+                                                        Reassign
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                     )}
                 </section>
 
-                {/* SECTION 3: USER & WORKER DIRECTORY (Desktop: Always Visible, Mobile: Under 'users' tab) */}
+                {/* SECTION 3: USER & WORKER DIRECTORY */}
                 <section className={`${mobileTab === 'users' || mobileTab === 'overview' ? 'block' : 'hidden md:block'} ${currentTheme.cardBg} border rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl`}>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <div>
-                            <div className="flex items-center gap-2">
-                                <h2 className={`text-base sm:text-lg font-black tracking-tight ${currentTheme.titleText}`}>User & Worker Directory</h2>
-                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-purple-500/15 text-purple-400 border border-purple-500/30">Directory</span>
-                            </div>
-                            <p className={`text-xs ${currentTheme.subText} mt-0.5`}>Tap any worker card to view performance analytics.</p>
+                            <h2 className={`text-base sm:text-lg font-black tracking-tight ${currentTheme.titleText}`}>Platform Directory</h2>
+                            <p className={`text-xs ${currentTheme.subText} mt-0.5`}>Manage accounts, inspect worker performance, or terminate users.</p>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
-                            <div className="relative flex-1 sm:w-56">
-                                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <div className="relative flex-1 sm:w-64">
+                                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input 
                                     type="text"
-                                    placeholder="Search user or worker..."
+                                    placeholder="Search users..."
                                     value={userSearchTerm}
                                     onChange={(e) => setUserSearchTerm(e.target.value)}
-                                    className={`w-full pl-8 pr-3 py-2 rounded-xl text-xs font-bold border outline-none ${currentTheme.inputBg}`}
+                                    className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-bold ${currentTheme.inputBg}`}
                                 />
                             </div>
 
-                            <div className={`flex items-center justify-center gap-1 p-1 rounded-xl border ${currentTheme.pillBg}`}>
-                                {['all', 'user', 'worker'].map((role) => (
-                                    <button 
-                                        key={role}
-                                        onClick={() => setFilterRole(role)}
-                                        className={`px-2.5 py-1 rounded-lg text-xs font-black capitalize transition-all ${
-                                            filterRole === role ? 'bg-indigo-600 text-white' : `${currentTheme.subText}`
-                                        }`}
-                                    >
-                                        {role === 'all' ? `All (${users.length})` : role === 'user' ? 'Clients' : 'Workers'}
-                                    </button>
-                                ))}
-                            </div>
+                            <select 
+                                value={filterRole}
+                                onChange={(e) => setFilterRole(e.target.value)}
+                                className={`px-3 py-2 rounded-xl border text-xs font-bold ${currentTheme.inputBg}`}
+                            >
+                                <option value="all">All Roles</option>
+                                <option value="user">Users</option>
+                                <option value="worker">Workers</option>
+                                <option value="admin">Admins</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
-                        {filteredUsers.length === 0 ? (
-                            <div className="col-span-full text-center py-10 text-slate-500 font-medium text-xs">
-                                No registered accounts found matching search criteria.
-                            </div>
-                        ) : (
-                            filteredUsers.map((u) => {
+                    {filteredUsers.length === 0 ? (
+                        <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl">
+                            <p className="text-xs font-bold text-slate-400">No user accounts found matching query.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredUsers.map(u => {
                                 const wStats = u.role === 'worker' ? getWorkerStats(u._id) : null;
-
                                 return (
-                                    <div 
-                                        key={u._id} 
-                                        onClick={() => u.role === 'worker' && setActiveWorkerProfile(u)}
-                                        className={`${currentTheme.innerCard} border p-3.5 sm:p-5 rounded-2xl shadow-md flex items-center justify-between group`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-xl sm:rounded-2xl flex items-center justify-center font-black text-xs sm:text-sm shadow-md shrink-0 ${
-                                                u.role === 'admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
-                                                u.role === 'worker' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                                'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-                                            }`}>
-                                                {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-1">
-                                                    <h4 className={`font-black text-xs sm:text-sm ${currentTheme.titleText}`}>{u.name || 'Anonymous User'}</h4>
-                                                    {u.role === 'worker' && <ExternalLink className="w-3 h-3 text-indigo-400 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity" />}
-                                                </div>
-                                                <p className={`text-[10px] sm:text-[11px] ${currentTheme.subText} truncate max-w-[120px] sm:max-w-[130px] font-bold`}>{u.email}</p>
-                                                
-                                                <div className="flex items-center gap-1.5 mt-1">
-                                                    <span className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${
-                                                        u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' :
-                                                        u.role === 'worker' ? 'bg-amber-500/20 text-amber-400' :
-                                                        'bg-indigo-500/20 text-indigo-400'
-                                                    }`}>
-                                                        {u.role}
-                                                    </span>
+                                    <div key={u._id} className={`${currentTheme.innerCard} border p-4 sm:p-5 rounded-2xl flex flex-col justify-between shadow-lg relative group`}>
+                                        <div>
+                                            <div className="flex items-center justify-between gap-2 mb-3">
+                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                                    u.role === 'admin' ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30' :
+                                                    u.role === 'worker' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                                                    'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                                }`}>
+                                                    {u.role}
+                                                </span>
 
-                                                    {wStats && (
-                                                        <span className="text-[9px] font-black text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-0.5">
-                                                            <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /> {wStats.avgRating}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                {u.role === 'worker' && wStats && (
+                                                    <div className="flex items-center gap-1 text-amber-400 text-xs font-black">
+                                                        <Star className="w-3.5 h-3.5 fill-amber-400" />
+                                                        <span>{wStats.avgRating}</span>
+                                                    </div>
+                                                )}
                                             </div>
+
+                                            <h3 className={`text-sm font-black ${currentTheme.titleText} mb-0.5`}>{u.name || 'Unnamed User'}</h3>
+                                            <p className={`text-xs ${currentTheme.subText} truncate mb-4`}>{u.email}</p>
+
+                                            {u.role === 'worker' && wStats && (
+                                                <div className="grid grid-cols-3 gap-2 py-2.5 my-2 border-y border-slate-800/80 text-center">
+                                                    <div>
+                                                        <span className="text-[10px] text-slate-500 uppercase block font-bold">Assigned</span>
+                                                        <span className="text-xs font-black">{wStats.total}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-[10px] text-slate-500 uppercase block font-bold">Done</span>
+                                                        <span className="text-xs font-black text-emerald-400">{wStats.completed}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-[10px] text-slate-500 uppercase block font-bold">Rate</span>
+                                                        <span className="text-xs font-black text-indigo-400">{wStats.rate}%</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {u.role !== 'admin' ? (
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); handleDeleteUser(u._id, u.role); }}
-                                                disabled={actionLoading === u._id}
-                                                className="p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 transition-all shadow-sm disabled:opacity-50 shrink-0"
-                                                title="Delete Account"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        ) : (
-                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800">Admin</span>
-                                        )}
+                                        <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                                            {u.role === 'worker' ? (
+                                                <button 
+                                                    onClick={() => setActiveWorkerProfile({ user: u, stats: wStats })}
+                                                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 text-xs font-black transition-all flex items-center gap-1.5"
+                                                >
+                                                    <Activity className="w-3.5 h-3.5" />
+                                                    <span>Metrics & Reviews</span>
+                                                </button>
+                                            ) : (
+                                                <span className="text-[10px] text-slate-500 font-mono">
+                                                    Joined {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
+                                                </span>
+                                            )}
+
+                                            {u.role !== 'admin' && (
+                                                <button 
+                                                    onClick={() => handleDeleteUser(u._id, u.role)}
+                                                    disabled={actionLoading === u._id}
+                                                    className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 transition-all"
+                                                    title="Terminate Account"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 );
-                            })
-                        )}
-                    </div>
-                </section>
-
-            </div>
-
-            {/* 📱 MOBILE BOTTOM NAVIGATION BAR (FIXED AT BOTTOM FOR MOBILE PHONES) */}
-            <div className={`md:hidden fixed bottom-0 left-0 right-0 z-40 p-2 ${currentTheme.bottomNavBg} border-t flex items-center justify-around`}>
-                <button 
-                    onClick={() => setMobileTab('overview')} 
-                    className={`flex flex-col items-center gap-1 text-[10px] font-black transition-all ${mobileTab === 'overview' ? 'text-indigo-400' : 'text-slate-400'}`}
-                >
-                    <BarChart2 className="w-4 h-4" />
-                    <span>Overview</span>
-                </button>
-                <button 
-                    onClick={() => setMobileTab('tickets')} 
-                    className={`flex flex-col items-center gap-1 text-[10px] font-black transition-all ${mobileTab === 'tickets' ? 'text-indigo-400' : 'text-slate-400'}`}
-                >
-                    <List className="w-4 h-4" />
-                    <span>Tickets</span>
-                </button>
-                <button 
-                    onClick={() => setMobileTab('users')} 
-                    className={`flex flex-col items-center gap-1 text-[10px] font-black transition-all ${mobileTab === 'users' ? 'text-indigo-400' : 'text-slate-400'}`}
-                >
-                    <Users className="w-4 h-4" />
-                    <span>Users</span>
-                </button>
-                <button 
-                    onClick={handleExportCSV} 
-                    className="flex flex-col items-center gap-1 text-[10px] font-black text-emerald-400"
-                >
-                    <Download className="w-4 h-4" />
-                    <span>Report</span>
-                </button>
-            </div>
-
-            {/* WORKER MINI-DASHBOARD MODAL (Full Responsive Sheet) */}
-            {activeWorkerProfile && (() => {
-                const wStats = getWorkerStats(activeWorkerProfile._id);
-
-                return (
-                    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-                        <div className={`${currentTheme.cardBg} border-t sm:border rounded-t-3xl sm:rounded-3xl p-5 sm:p-8 max-w-xl w-full shadow-2xl relative max-h-[85vh] sm:max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in duration-200`}>
-                            
-                            <button 
-                                onClick={() => setActiveWorkerProfile(null)}
-                                className="absolute top-4 right-4 p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-white transition-all"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-
-                            {/* Worker Header */}
-                            <div className="flex items-center gap-3.5 mb-5">
-                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center text-lg sm:text-xl font-black shadow-lg">
-                                    {activeWorkerProfile.name ? activeWorkerProfile.name.charAt(0).toUpperCase() : 'W'}
-                                </div>
-                                <div>
-                                    <h3 className={`text-lg sm:text-xl font-black ${currentTheme.titleText}`}>{activeWorkerProfile.name}</h3>
-                                    <p className={`text-xs ${currentTheme.subText}`}>{activeWorkerProfile.email}</p>
-                                </div>
-                            </div>
-
-                            {/* Rating & Review Hero Badge */}
-                            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-500/30 flex items-center justify-between mb-5">
-                                <div className="flex items-center gap-2.5">
-                                    <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase text-amber-400">Satisfaction</p>
-                                        <span className="text-lg font-black text-white">{wStats.avgRating} / 5.0</span>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-black text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                                    {wStats.rate}% Success
-                                </span>
-                            </div>
-
-                            {/* Recharts Workload Bar Chart */}
-                            <div className="p-4 rounded-2xl bg-[#090d18] border border-indigo-500/20 shadow-inner mb-5">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-xs font-black text-slate-200 flex items-center gap-1.5">
-                                        <BarChart2 className="w-4 h-4 text-indigo-400" /> Workload Breakdown
-                                    </span>
-                                </div>
-
-                                <div className="h-40 w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={wStats.chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                                            <defs>
-                                                <linearGradient id="pendingGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#f59e0b" stopOpacity={1} />
-                                                    <stop offset="100%" stopColor="#d97706" stopOpacity={0.4} />
-                                                </linearGradient>
-                                                <linearGradient id="progressGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
-                                                    <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.4} />
-                                                </linearGradient>
-                                                <linearGradient id="completedGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
-                                                    <stop offset="100%" stopColor="#047857" stopOpacity={0.4} />
-                                                </linearGradient>
-                                                <linearGradient id="rejectedGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#f43f5e" stopOpacity={1} />
-                                                    <stop offset="100%" stopColor="#be123c" stopOpacity={0.4} />
-                                                </linearGradient>
-                                            </defs>
-
-                                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} fontWeight={700} tickLine={false} />
-                                            <YAxis stroke="#94a3b8" fontSize={10} fontWeight={700} tickLine={false} allowDecimals={false} />
-                                            <Tooltip 
-                                                cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                                                contentStyle={{ backgroundColor: '#0d121f', borderColor: '#3b82f6', borderRadius: '12px', fontSize: '11px', color: '#fff' }} 
-                                            />
-                                            <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                                                {wStats.chartData.map((entry, index) => (
-                                                    <Cell key={`bar-${index}`} fill={entry.fillId} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            {/* Assigned Tickets Listing */}
-                            <h4 className={`text-xs font-black uppercase tracking-wider ${currentTheme.subText} mb-2.5`}>
-                                Assigned Tickets ({wStats.total})
-                            </h4>
-
-                            <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
-                                {wStats.tickets.length === 0 ? (
-                                    <p className="text-xs text-slate-500 italic py-4 text-center bg-slate-900/40 rounded-xl border border-slate-800">
-                                        No tickets assigned yet.
-                                    </p>
-                                ) : (
-                                    wStats.tickets.map((t, idx) => (
-                                        <div key={t._id} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between text-xs">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-mono font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                                                    #{t.ticketNumber || `TK-${(idx + 1).toString().padStart(4, '0')}`}
-                                                </span>
-                                                <span className="font-bold text-slate-200 line-clamp-1 max-w-[120px]">{t.title || 'Ticket'}</span>
-                                            </div>
-                                            {getStatusBadge(t.status)}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-
+                            })}
                         </div>
-                    </div>
-                );
-            })()}
+                    )}
+                </section>
+            </div>
 
-            {/* REASSIGN WORKER MODAL */}
+            {/* 📱 MOBILE BOTTOM NAVIGATION BAR */}
+            <div className={`md:hidden fixed bottom-0 left-0 right-0 ${currentTheme.bottomNavBg} border-t px-4 py-2.5 flex items-center justify-around z-40 shadow-2xl`}>
+                <button 
+                    onClick={() => setMobileTab('overview')}
+                    className={`flex flex-col items-center gap-1 ${mobileTab === 'overview' ? 'text-indigo-500' : 'text-slate-400'}`}
+                >
+                    <PieIcon className="w-5 h-5" />
+                    <span className="text-[10px] font-black">Overview</span>
+                </button>
+                <button 
+                    onClick={() => setMobileTab('tickets')}
+                    className={`flex flex-col items-center gap-1 ${mobileTab === 'tickets' ? 'text-indigo-500' : 'text-slate-400'}`}
+                >
+                    <LayoutGrid className="w-5 h-5" />
+                    <span className="text-[10px] font-black">Tickets</span>
+                </button>
+                <button 
+                    onClick={() => setMobileTab('users')}
+                    className={`flex flex-col items-center gap-1 ${mobileTab === 'users' ? 'text-indigo-500' : 'text-slate-400'}`}
+                >
+                    <Users className="w-5 h-5" />
+                    <span className="text-[10px] font-black">Directory</span>
+                </button>
+                <button 
+                    onClick={handleLogout}
+                    className="flex flex-col items-center gap-1 text-rose-500"
+                >
+                    <LogOut className="w-5 h-5" />
+                    <span className="text-[10px] font-black">Logout</span>
+                </button>
+            </div>
+
+            {/* REASSIGN TICKET MODAL */}
             {selectedTicket && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-                    <div className={`${currentTheme.cardBg} border rounded-3xl p-6 max-w-md w-full shadow-2xl relative`}>
-                        <h3 className={`text-base font-black ${currentTheme.titleText} mb-1`}>Reassign Ticket Worker</h3>
-                        <p className={`text-xs ${currentTheme.subText} mb-4`}>
-                            Override assignment for ticket: <strong className="text-indigo-400 font-mono">#{selectedTicket.ticketNumber || selectedTicket._id.slice(-6)}</strong>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                    <div className={`${currentTheme.cardBg} border w-full max-w-md rounded-3xl p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200`}>
+                        <button 
+                            onClick={() => setSelectedTicket(null)}
+                            className="absolute top-5 right-5 p-2 rounded-xl bg-slate-800/60 text-slate-400 hover:text-white"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+
+                        <h3 className={`text-lg font-black ${currentTheme.titleText} mb-1`}>Reassign Ticket</h3>
+                        <p className={`text-xs ${currentTheme.subText} mb-6`}>
+                            Override current assignment for <span className="font-mono font-bold text-indigo-400">{selectedTicket.ticketNumber || selectedTicket._id}</span>
                         </p>
 
                         <form onSubmit={handleReassignSubmit} className="space-y-4">
                             <div>
-                                <label className={`block text-[11px] font-black uppercase mb-1.5 ${currentTheme.subText}`}>Select Available Worker</label>
+                                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-2">Select Active Worker</label>
                                 <select 
                                     value={selectedWorkerId}
                                     onChange={(e) => setSelectedWorkerId(e.target.value)}
-                                    className={`w-full p-2.5 rounded-xl text-xs font-bold border outline-none ${currentTheme.inputBg} cursor-pointer`}
                                     required
+                                    className={`w-full p-3 rounded-xl border text-xs font-bold ${currentTheme.inputBg}`}
                                 >
-                                    <option value="">-- Choose Worker --</option>
+                                    <option value="">-- Choose Specialist --</option>
                                     {availableWorkers.map(w => (
                                         <option key={w._id} value={w._id}>
                                             {w.name} ({w.email})
@@ -981,23 +869,92 @@ const AdminDashboard = () => {
                                 </select>
                             </div>
 
-                            <div className="flex items-center justify-end gap-2.5 pt-2">
+                            <div className="flex gap-3 pt-2">
                                 <button 
                                     type="button" 
                                     onClick={() => setSelectedTicket(null)}
-                                    className="px-3.5 py-2 rounded-xl border text-xs font-bold hover:bg-slate-500/10"
+                                    className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-black"
                                 >
                                     Cancel
                                 </button>
                                 <button 
-                                    type="submit" 
+                                    type="submit"
                                     disabled={actionLoading === selectedTicket._id}
-                                    className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 shadow-lg disabled:opacity-50"
+                                    className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-lg shadow-indigo-600/30"
                                 >
-                                    {actionLoading === selectedTicket._id ? 'Saving...' : 'Confirm'}
+                                    {actionLoading === selectedTicket._id ? 'Reassigning...' : 'Confirm Reassignment'}
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* WORKER MINI-DASHBOARD MODAL */}
+            {activeWorkerProfile && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                    <div className={`${currentTheme.cardBg} border w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200`}>
+                        <button 
+                            onClick={() => setActiveWorkerProfile(null)}
+                            className="absolute top-5 right-5 p-2 rounded-xl bg-slate-800/60 text-slate-400 hover:text-white"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-2xl">
+                                <Wrench className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className={`text-lg font-black ${currentTheme.titleText}`}>{activeWorkerProfile.user.name}</h3>
+                                <p className={`text-xs ${currentTheme.subText}`}>{activeWorkerProfile.user.email} • Worker Performance Metrics</p>
+                            </div>
+                        </div>
+
+                        {/* Worker Analytics Chart */}
+                        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 mb-6">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-4">Ticket Status Distribution</h4>
+                            <div className="h-48 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={activeWorkerProfile.stats.chartData}>
+                                        <XAxis dataKey="name" stroke="#64748b" textAnchor="end" fontSize={10} />
+                                        <YAxis stroke="#64748b" fontSize={10} allowDecimals={false} />
+                                        <Tooltip />
+                                        <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Reviews Section */}
+                        <div>
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                                <span>Customer Feedback & Ratings</span>
+                                <span className="text-amber-400 font-bold flex items-center gap-1">
+                                    <Star className="w-3.5 h-3.5 fill-amber-400" /> {activeWorkerProfile.stats.avgRating} ({activeWorkerProfile.stats.reviewsCount} reviews)
+                                </span>
+                            </h4>
+
+                            {activeWorkerProfile.stats.reviews.length === 0 ? (
+                                <p className="text-xs text-slate-500 italic py-4 text-center border border-dashed border-slate-800 rounded-xl">No reviews submitted for this specialist yet.</p>
+                            ) : (
+                                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                                    {activeWorkerProfile.stats.reviews.map(rev => (
+                                        <div key={rev.id} className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="font-bold text-slate-200">{rev.customerName}</span>
+                                                <div className="flex items-center gap-1 text-amber-400">
+                                                    <Star className="w-3 h-3 fill-amber-400" />
+                                                    <span className="font-black">{rev.rating}.0</span>
+                                                </div>
+                                            </div>
+                                            <p className="text-slate-400 italic mb-1">"{rev.comment}"</p>
+                                            <span className="text-[10px] text-indigo-400 font-mono">Ticket: {rev.ticketTitle}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
