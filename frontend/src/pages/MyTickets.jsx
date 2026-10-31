@@ -29,7 +29,7 @@ const MyTickets = () => {
     const fetchMyTickets = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('https://support-flow-ten.vercel.app/api/tickets/my-tickets', {
+            const response = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/tickets/my-tickets', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTickets(response.data);
@@ -51,7 +51,7 @@ const MyTickets = () => {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`https://support-flow-ten.vercel.app/api/tickets/customer/delete/${ticketId}`, {
+            await axios.delete(`${import.meta.env.VITE_BACKEND_URI}/api/tickets/customer/delete/${ticketId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTickets(tickets.filter(ticket => ticket._id !== ticketId));
@@ -78,7 +78,7 @@ const MyTickets = () => {
         setUpdating(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.put(`https://support-flow-ten.vercel.app/api/tickets/customer/update/${currentTicket._id}`, editForm, {
+            const response = await axios.put(`${import.meta.env.VITE_BACKEND_URI}/api/tickets/customer/update/${currentTicket._id}`, editForm, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -102,7 +102,7 @@ const MyTickets = () => {
         try {
             const token = localStorage.getItem('token');
             const response = await axios.put(
-                `https://support-flow-ten.vercel.app/api/tickets/customer/feedback/${selectedTicketForFeedback._id}`,
+                `${import.meta.env.VITE_BACKEND_URI}/api/tickets/customer/feedback/${selectedTicketForFeedback._id}`,
                 { rating, feedback: feedbackText },
                 { headers: { Authorization: `Bearer ${token}` } }
             );

@@ -24,7 +24,7 @@ app.use(express.json());
 app.use(cors({
     origin: [
         'https://support-flow-nc21.vercel.app',
-        'https://support-flow-ten.vercel.app',
+        '${import.meta.env.VITE_BACKEND_URI}',
         'http://localhost:5173',
         'http://localhost:3000'
     ],

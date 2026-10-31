@@ -36,7 +36,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await axios.get('https://support-flow-ten.vercel.app/api/users/profile', {
+            const res = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/users/profile', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data) {
@@ -63,7 +63,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await axios.get('https://support-flow-ten.vercel.app/api/notifications/my-notifications', {
+            const res = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/notifications/my-notifications', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(res.data || []);
@@ -77,7 +77,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await axios.get('https://support-flow-ten.vercel.app/api/tickets/my-tickets', {
+            const res = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/tickets/my-tickets', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const tickets = res.data || [];
@@ -99,7 +99,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
         e.stopPropagation();
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`https://support-flow-ten.vercel.app/api/notifications/mark-read/${id}`, {}, {
+            await axios.put(`${import.meta.env.VITE_BACKEND_URI}/api/notifications/mark-read/${id}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));

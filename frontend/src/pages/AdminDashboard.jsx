@@ -110,9 +110,9 @@ const AdminDashboard = () => {
             const headers = { Authorization: `Bearer ${token}` };
 
             const [statsRes, usersRes, ticketsRes] = await Promise.all([
-                axios.get('https://support-flow-ten.vercel.app/api/admin/stats', { headers }),
-                axios.get('https://support-flow-ten.vercel.app/api/admin/users', { headers }),
-                axios.get('https://support-flow-ten.vercel.app/api/admin/tickets', { headers })
+                axios.get('${import.meta.env.VITE_BACKEND_URI}/api/admin/stats', { headers }),
+                axios.get('${import.meta.env.VITE_BACKEND_URI}/api/admin/users', { headers }),
+                axios.get('${import.meta.env.VITE_BACKEND_URI}/api/admin/tickets', { headers })
             ]);
 
             setStats(statsRes.data);
@@ -168,7 +168,7 @@ const AdminDashboard = () => {
             setActionLoading(selectedTicket._id);
             const headers = { Authorization: `Bearer ${token}` };
             const res = await axios.put(
-                `https://support-flow-ten.vercel.app/api/admin/ticket/${selectedTicket._id}/reassign`, 
+                `${import.meta.env.VITE_BACKEND_URI}/api/admin/ticket/${selectedTicket._id}/reassign`, 
                 { workerId: selectedWorkerId },
                 { headers }
             );
@@ -197,7 +197,7 @@ const AdminDashboard = () => {
         try {
             setActionLoading(userId);
             const headers = { Authorization: `Bearer ${token}` };
-            await axios.delete(`https://support-flow-ten.vercel.app/api/admin/user/${userId}`, { headers });
+            await axios.delete(`${import.meta.env.VITE_BACKEND_URI}/api/admin/user/${userId}`, { headers });
             
             setSuccessMsg("User account deleted successfully.");
             setTimeout(() => setSuccessMsg(''), 4000);
