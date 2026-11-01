@@ -24,10 +24,10 @@ const CustomerDashboard = () => {
         const fetchCategories = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/tickets/categories', {
+                const response = await axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/tickets/categories`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                setCategories(response.data);
+                setCategories(Array.isArray(response.data) ? response.data : response.data.categories || []);
             } catch (error) {
                 console.error("Error fetching categories:", error);
             } finally {
@@ -53,7 +53,7 @@ const CustomerDashboard = () => {
                 const response = await axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/tickets/workers/${category}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                setWorkers(response.data);
+                setWorkers(Array.isArray(response.data) ? response.data : response.data.workers || []);
             } catch (error) {
                 console.error("Error fetching workers:", error);
             } finally {
@@ -69,7 +69,7 @@ const CustomerDashboard = () => {
         e.preventDefault();
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.post('${import.meta.env.VITE_BACKEND_URI}/api/tickets/create', {
+            const response = await axios.post(`${import.meta.env.VITE_BACKEND_URI}/api/tickets/create`, {
                 title,
                 description,
                 category,
@@ -113,6 +113,9 @@ const CustomerDashboard = () => {
             </div>
         );
     }
+
+    const safeCategories = Array.isArray(categories) ? categories : [];
+    const safeWorkers = Array.isArray(workers) ? workers : [];
 
     return (
         <div className={`relative flex min-h-screen w-full flex-col items-center justify-start overflow-hidden font-sans transition-colors duration-500 ${isDarkMode ? 'bg-[#070403] text-[#f4eae3]' : 'bg-slate-100 text-slate-900'}`}>
@@ -225,7 +228,7 @@ const CustomerDashboard = () => {
                                         }`}
                                     >
                                         <option value="">Select Category</option>
-                                        {categories.map((cat, index) => (
+                                        {safeCategories.map((cat, index) => (
                                             <option key={index} value={cat}>{cat}</option>
                                         ))}
                                     </select>
@@ -249,7 +252,7 @@ const CustomerDashboard = () => {
                                         <option value="">
                                             {loadingWorkers ? "Loading workers..." : "Select Worker (Optional)"}
                                         </option>
-                                        {workers.map((worker) => (
+                                        {safeWorkers.map((worker) => (
                                             <option key={worker._id} value={worker._id}>
                                                 {worker.name} (Rating: {worker.rating || 0} ⭐)
                                             </option>
