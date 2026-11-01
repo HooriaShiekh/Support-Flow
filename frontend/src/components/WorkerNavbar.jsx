@@ -51,11 +51,13 @@ const WorkerDashboard = () => {
         try {
             if (!isBackground) setLoading(true);
             
-            const response = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/tickets/worker-tickets', {
+            const response = await axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/tickets/worker-tickets`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            setTickets(response.data);
+            const rawData = response.data;
+            const ticketsArray = Array.isArray(rawData) ? rawData : (rawData.tickets || rawData.data || []);
+            setTickets(ticketsArray);
             setError('');
         } catch (err) {
             console.error("Error fetching tickets:", err.response || err);
@@ -99,12 +101,13 @@ const WorkerDashboard = () => {
         window.location.href = '/login';
     };
 
-    // Live Metrics calculations
-    const pendingCount = tickets.filter(t => t.status === 'Pending' || t.status === 'Open').length;
-    const doneCount = tickets.filter(t => t.status === 'Completed').length;
-    const totalTickets = tickets.length;
+    // Live Metrics calculations with safety checks
+    const safeTickets = Array.isArray(tickets) ? tickets : [];
+    const pendingCount = safeTickets.filter(t => t.status === 'Pending' || t.status === 'Open').length;
+    const doneCount = safeTickets.filter(t => t.status === 'Completed').length;
+    const totalTickets = safeTickets.length;
     const scorePercentage = totalTickets > 0 ? Math.round((doneCount / totalTickets) * 100) : 0;
-    const pendingRequests = tickets.filter(t => t.status === 'Pending' || !t.status);
+    const pendingRequests = safeTickets.filter(t => t.status === 'Pending' || !t.status);
 
     if (loading) return (
         <div className={`min-h-screen ${currentTheme.bg} flex items-center justify-center font-medium tracking-wide transition-colors duration-500`}>
@@ -143,14 +146,14 @@ const WorkerDashboard = () => {
                 {successMessage && <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 dark:text-emerald-400 p-4 mb-6 rounded-2xl shadow-md text-xs sm:text-sm">{successMessage}</div>}
 
                 {/* --- TICKETS GRID --- */}
-                {tickets.length === 0 ? (
+                {safeTickets.length === 0 ? (
                     <div className={`text-center py-20 sm:py-24 ${currentTheme.cardBg} border ${currentTheme.border} rounded-3xl shadow-xl px-4`}>
                         <p className={`${currentTheme.subText} text-sm sm:text-base`}>Aapko abhi tak koi ticket assign nahi hui hai.</p>
                         <p className="text-xs text-purple-500 mt-2">Note: Check karein ke backend route `/api/tickets/worker-tickets` sahi data bhej raha hai ya nahi.</p>
                     </div>
                 ) : (
                     <div className="grid gap-5 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                        {tickets.map((ticket) => {
+                        {safeTickets.map((ticket) => {
                             const isLocked = ticket.status === 'Completed' || ticket.status === 'Rejected';
 
                             return (

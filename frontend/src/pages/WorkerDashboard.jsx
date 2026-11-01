@@ -54,11 +54,13 @@ const WorkerDashboard = () => {
         try {
             if (!isBackground) setLoading(true);
             
-            const response = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/worker/my-assigned-tickets', {
+            const response = await axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/worker/my-assigned-tickets`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            setTickets(response.data);
+            const rawData = response.data;
+            const ticketsArray = Array.isArray(rawData) ? rawData : (rawData.tickets || rawData.data || []);
+            setTickets(ticketsArray);
             setError('');
         } catch (err) {
             console.error("Error fetching tickets:", err.response || err);
@@ -101,15 +103,16 @@ const WorkerDashboard = () => {
         window.location.href = '/login';
     };
 
-    // --- AUTOMATIC FILTERING LOGIC ---
-    const activeTickets = tickets.filter(t => t.status !== 'Completed' && t.status !== 'Rejected');
-    const historyTickets = tickets.filter(t => t.status === 'Completed' || t.status === 'Rejected');
+    // --- AUTOMATIC FILTERING LOGIC WITH SAFETY CHECKS ---
+    const safeTickets = Array.isArray(tickets) ? tickets : [];
+    const activeTickets = safeTickets.filter(t => t.status !== 'Completed' && t.status !== 'Rejected');
+    const historyTickets = safeTickets.filter(t => t.status === 'Completed' || t.status === 'Rejected');
 
     const displayedTickets = activeTab === 'active' ? activeTickets : historyTickets;
 
     const doneCount = historyTickets.filter(t => t.status === 'Completed').length;
-    const totalTickets = tickets.length;
-    const scorePercentage = totalTickets > 0 ? Math.round((historyTickets.filter(t => t.status === 'Completed').length / totalTickets) * 100) : 0;
+    const totalTickets = safeTickets.length;
+    const scorePercentage = totalTickets > 0 ? Math.round((doneCount / totalTickets) * 100) : 0;
     const pendingRequests = activeTickets.filter(t => t.status === 'Pending' || !t.status);
 
     if (loading) return (

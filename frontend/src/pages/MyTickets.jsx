@@ -29,10 +29,12 @@ const MyTickets = () => {
     const fetchMyTickets = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/tickets/my-tickets', {
+            const response = await axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/tickets/my-tickets`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setTickets(response.data);
+            const rawData = response.data;
+            const ticketsArray = Array.isArray(rawData) ? rawData : (rawData.tickets || rawData.data || []);
+            setTickets(ticketsArray);
         } catch (error) {
             console.error("Error fetching tickets:", error);
             setMessage('Failed to load your tickets.');
@@ -82,7 +84,8 @@ const MyTickets = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            setTickets(tickets.map(t => (t._id === currentTicket._id ? response.data.ticket || response.data : t)));
+            const updatedTicketData = response.data.ticket || response.data;
+            setTickets(tickets.map(t => (t._id === currentTicket._id ? updatedTicketData : t)));
             setIsEditModalOpen(false);
             setCurrentTicket(null);
         } catch (error) {
@@ -107,7 +110,8 @@ const MyTickets = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            setTickets(tickets.map(t => (t._id === selectedTicketForFeedback._id ? response.data.ticket : t)));
+            const updatedTicketData = response.data.ticket || response.data;
+            setTickets(tickets.map(t => (t._id === selectedTicketForFeedback._id ? updatedTicketData : t)));
             setIsFeedbackModalOpen(false);
             setSelectedTicketForFeedback(null);
             setFeedbackText('');
@@ -204,6 +208,8 @@ const MyTickets = () => {
         );
     }
 
+    const safeTickets = Array.isArray(tickets) ? tickets : [];
+
     return (
         <div className={`relative min-h-screen w-full font-sans transition-colors duration-500 ${isDarkMode ? 'bg-[#070403] text-[#f4eae3]' : 'bg-slate-100 text-slate-900'}`}>
             <Navbar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
@@ -249,7 +255,7 @@ const MyTickets = () => {
                 )}
 
                 {/* Tickets Grid / List */}
-                {tickets.length === 0 ? (
+                {safeTickets.length === 0 ? (
                     <div className={`text-center py-16 rounded-3xl border border-dashed ${isDarkMode ? 'border-white/10 bg-white/[0.02]' : 'border-slate-300 bg-white/50'}`}>
                         <Ticket className="w-12 h-12 mx-auto mb-3 opacity-30 text-indigo-500" />
                         <h3 className="text-sm font-semibold">No tickets found</h3>
@@ -265,7 +271,7 @@ const MyTickets = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-5">
-                        {tickets.map((ticket, index) => (
+                        {safeTickets.map((ticket, index) => (
                             <motion.div
                                 key={ticket._id}
                                 initial={{ opacity: 0, y: 15 }}
