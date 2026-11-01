@@ -36,7 +36,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/users/profile', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/users/profile`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data) {
@@ -63,12 +63,15 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/notifications/my-notifications', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/notifications/my-notifications`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setNotifications(res.data || []);
+            const rawData = res.data;
+            const notifArray = Array.isArray(rawData) ? rawData : (rawData.notifications || rawData.data || []);
+            setNotifications(notifArray);
         } catch (error) {
             console.error("Error fetching notifications:", error);
+            setNotifications([]);
         }
     };
 
@@ -77,10 +80,11 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await axios.get('${import.meta.env.VITE_BACKEND_URI}/api/tickets/my-tickets', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URI}/api/tickets/my-tickets`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            const tickets = res.data || [];
+            const rawData = res.data;
+            const tickets = Array.isArray(rawData) ? rawData : (rawData.tickets || rawData.data || []);
             
             const pending = tickets.filter(t => t.status === 'Pending' || t.status === 'Open' || t.status === 'In Progress').length;
             const completed = tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length;
@@ -108,7 +112,8 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
         }
     };
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const safeNotifications = Array.isArray(notifications) ? notifications : [];
+    const unreadCount = safeNotifications.filter(n => !n.isRead).length;
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -160,7 +165,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
                         <button
                             onClick={() => navigate('/user-dashboard')}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
-                                location.pathname === '/customer-dashboard'
+                                location.pathname === '/customer-dashboard' || location.pathname === '/user-dashboard'
                                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/30 scale-105'
                                     : isDarkMode ? 'hover:bg-white/10 text-white/70 hover:text-white' : 'hover:bg-slate-100 text-slate-600'
                             }`}
@@ -240,7 +245,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
                                     </div>
 
                                     <div className="max-h-80 overflow-y-auto divide-y divide-white/5">
-                                        {notifications.length === 0 ? (
+                                        {safeNotifications.length === 0 ? (
                                             <div className="text-center py-12 opacity-50 space-y-3">
                                                 <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center mx-auto text-indigo-400">
                                                     <Bell className="w-6 h-6 opacity-40 animate-pulse" />
@@ -248,7 +253,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
                                                 <p className="text-xs font-semibold">No notifications yet</p>
                                             </div>
                                         ) : (
-                                            notifications.map((notif) => (
+                                            safeNotifications.map((notif) => (
                                                 <div 
                                                     key={notif._id} 
                                                     className={`p-4 text-xs flex items-start justify-between gap-3.5 transition-all ${
